@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>自定義變速小恐龍</title>
+    <style>
+        body {
+            margin: 0; display: flex; justify-content: center; align-items: center;
+            height: 100vh; background-color: #f0f0f0; font-family: sans-serif; overflow: hidden;
+        }
+        .game-container { position: relative; border: 2px solid #333; background: #fff; }
+        #score { position: absolute; top: 10px; right: 20px; font-size: 20px; color: #555; }
+        #overlay {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.7); color: white; display: none;
+            flex-direction: column; justify-content: center; align-items: center;
+        }
+        button {
+            padding: 10px 20px; font-size: 16px; cursor: pointer; margin-top: 10px;
+            background: #fff; border: none; border-radius: 5px;
+        }
+    </style>
+</head>
+<body>
+
+<div class="game-container">
+    <div id="score">分數: 0</div>
+    <canvas id="gameCanvas" width="800" height="200"></canvas>
+    <div id="overlay">
+        <h1>遊戲結束</h1>
+        <p>按下 <strong style="color:#ff0">R</strong> 或點擊按鈕重開</p>
+        <button onclick="resetGame()">重新開始</button>
+    </div>
+</div>
+
+<script>
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+const scoreEl = document.getElementById('score');
+const overlay = document.getElementById('overlay');
+
+// 載入圖片
+const dinoImg = new Image();
+dinoImg.src = 'dino.png'; 
+
+// 遊戲變數
+let dino, obstacles, score, gameSpeed, isGameOver, frameCount;
+const gravity = 0.8;
+const jumpPower = -15;
+
+function init() {
+    dino = { x: 50, y: 150, w: 40, h: 40, vy: 0, grounded: false };
+    obstacles = [];
+    score = 0;
+    gameSpeed = 6;
+    isGameOver = false;
+    frameCount = 0;
+    overlay.style.display = 'none';
+    requestAnimationFrame(update);
+}
+
+function resetGame() {
+    init();
+}
+
+window.addEventListener('keydown', e => {
+    if ((e.code === 'Space' || e.code === 'ArrowUp') && dino.grounded) {
+        dino.vy = jumpPower;
+        dino.grounded = false;
+    }
+    if (isGameOver && e.key.toLowerCase() === 'r') {
+        resetGame();
+    }
+});
+
+function update() {
+    if (isGameOver) return;
+
+    frameCount++;
+    
+    // --- 核心功能：忽快忽慢的邏輯 ---
+    // 每 100 幀隨機改變一次速度，讓速度在 4 到 12 之間震盪
+    if (frameCount % 100 === 0) {
+        gameSpeed = 4 + Math.random() * 8;
+    }
+
+    // 小恐龍物理
+    dino.vy += gravity;
+    dino.y += dino.vy;
+    if (dino.y > 150) {
+        dino.y = 150;
+        dino.vy = 0;
+        dino.grounded = true;
+    }
+
+    // 生成障礙物
+    if (frameCount % Math.floor(1000 / gameSpeed) === 0) {
+        obstacles.push({ x: 800, w: 20, h: 30 + Math.random() * 20 });
+    }
+
+    // 移動障礙物與碰撞檢測
+    for (let i = obstacles.length - 1; i >= 0; i--) {
+        obstacles[i].x -= gameSpeed;
+        
+        // 矩形碰撞判定
+        if (dino.x < obstacles[i].x + obstacles[i].w &&
+            dino.x + dino.w > obstacles[i].x &&
+            dino.y < 150 + obstacles[i].h &&
+            dino.y + dino.h > 150) {
+            isGameOver = true;
+            overlay.style.display = 'flex';
+        }
+
+        if (obstacles[i].x + obstacles[i].w < 0) {
+            obstacles.splice(i, 1);
+            score++;
+            scoreEl.innerText = `分數: ${score}`;
+        }
+    }
+
+    draw();
+    requestAnimationFrame(update);
+}
+
+function draw() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    
+    // 畫地面
+    ctx.strokeStyle = '#333';
+    ctx.beginPath(); ctx.moveTo(0, 190); ctx.lineTo(800, 190); ctx.stroke();
+
+    // 畫小恐龍 (使用你的圖片)
+    ctx.drawImage(dinoImg, dino.x, dino.y, dino.w, dino.h);
+
+    // 畫障礙物
+    ctx.fillStyle = '#ff4d4d';
+    obstacles.forEach(ob => {
+        ctx.fillRect(ob.x, 190 - ob.h, ob.w, ob.h);
+    });
+}
+
+// 圖片載入完成後啟動遊戲
+dinoImg.onload = init;
+</script>
+</body>
+</html>
